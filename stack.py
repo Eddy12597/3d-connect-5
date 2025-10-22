@@ -3,7 +3,7 @@ from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
-class stack(Generic[T]):
+class Stack(Generic[T]):
 
     def __init__(self) -> None:
         self._container: list[T] = []
@@ -46,9 +46,12 @@ class stack(Generic[T]):
 
     # Optional: C++-like equality comparison
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, stack):
+        if not isinstance(other, Stack):
             return NotImplemented
         return self._container == other._container
 
     def tolist(self) -> list[T]:
         return self._container
+
+    def bottom(self) -> T:
+        return self._container[0]
