@@ -1,5 +1,6 @@
 from stack import Stack
 from collections import deque
+from colorama import Back, Style, Fore
 
 class Side:
     WHITE = True
@@ -190,13 +191,15 @@ class Board:
         board += "║ " + header + " ║\n"
         board += "║ " + "═" * (len(header)) +" ║\n"
                 
-        for x in range(-self.xrad, self.xrad + 1):
+        for y in range(-self.yrad, self.yrad + 1):
             board += "║ "
-            board += f"{x:^3}║"  # Y-coordinate at the start of each row
-            for y in range(-self.yrad, self.yrad + 1):
+            board += f"{y:^3}║"  # Y-coordinate at the start of each row
+            for x in range(-self.xrad, self.xrad + 1):
                 cell_value = self.grid[x + self.xrad][y + self.yrad].size()
                 if cell_value == 1:
-                    cell_value = "W" if self.grid[x + self.xrad][y + self.yrad].bottom().side else "B"
+                    cell_value = f"{f" {Back.WHITE}{Fore.BLACK}W{Style.RESET_ALL}":^3} " if self.grid[x + self.xrad][y + self.yrad].bottom().side else f"{f" {Back.BLUE}{Fore.WHITE}B{Style.RESET_ALL}":^3} "
+                elif cell_value != 0:
+                    cell_value = f" {Back.GREEN}{Fore.WHITE}{cell_value}{Style.RESET_ALL} "
                 board += f"{cell_value:^3}"  # Center values in cells
             board += " ║\n"
         
