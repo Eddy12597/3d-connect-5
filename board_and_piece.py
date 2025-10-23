@@ -1,14 +1,15 @@
 from stack import Stack
 from collections import deque
-import functools
 
 class Side:
     WHITE = True
     BLACK = False
 
+_idcnt = 0
 
 class Piece:
-    def __init__(self, side: str | bool, x: int, y: int, z: int | None = None, id: int = -1) -> None:
+    def __init__(self, side: str | bool, x: int, y: int, z: int | None = None, i: int = -1) -> None:
+        global _idcnt
         self.id = id
         self.x = x
         self.y = y
@@ -21,6 +22,11 @@ class Piece:
             self.side = side
         else:
             self.side = side.lower().strip()[0] == "w"
+        
+        if i == -1:
+            i = _idcnt
+            _idcnt += 1
+        self.id = i
     
     def __eq__(self, other) -> bool:
         if not isinstance(other, Piece):
@@ -34,10 +40,14 @@ class Piece:
 
 
 class Board:
-    def __init__(self, xrad: int = 9, yrad: int = 9, maxh: int = 50, list_pieces: list[Piece] | None = None) -> None:
+    def __init__(self, xrad: int = 9, yrad: int = 9, maxh: int = 50, list_pieces: list[Piece] | None = None, win_len: int = 5) -> None:
+        
+        self.status: bool | None = None # bool for side
+        
         self.xrad = xrad
         self.yrad = yrad
         self.maxh = maxh
+        self.win_len = win_len
         self.list_pieces: list[Piece] = list_pieces or []
         
         # Create grid with stacks
@@ -46,11 +56,13 @@ class Board:
             for _ in range(2 * xrad + 1)
         ]
         self.place_list(self.list_pieces)
+        
     
     def place_list(self, list_pieces: list[Piece]) -> None:
         for piece in list_pieces:
             self.place(piece)
     
+    # also calls check_single(p, self.win_len)
     def place(self, p: Piece) -> None:
         x, y = p.x, p.y
         if not (-self.xrad <= x <= self.xrad and -self.yrad <= y <= self.yrad):
@@ -63,6 +75,9 @@ class Board:
         p.z = z
         self.grid[self.xrad + x][self.yrad + y].push(p)
         self.list_pieces.append(p)
+        if any(res := self.check_single(p, self.win_len)):
+            self.status = res[1]
+        else: self.status = None
     
     def __getitem__(self, coord: tuple[int, int, int]) -> Piece | None:
         x, y, z = coord
@@ -81,9 +96,10 @@ class Board:
         stack = self.grid[self.xrad + x][self.yrad + y]
         return stack.top() if stack.size() > 0 else None
     
-    def check_single(self, piece: Piece, win_len: int = 5) -> bool:
+    # returns (black_won, white_won)
+    def check_single(self, piece: Piece, win_len: int = 5) -> tuple[bool, bool]:
         if piece.z is None:
-            return False
+            return False, False
         
         # 26 possible directions in 3D space (combinations of -1, 0, 1 excluding (0,0,0))
         directions = [
@@ -112,9 +128,9 @@ class Board:
                 count += 1
             
             if count >= win_len:
-                return True
+                return ((not piece.side), piece.side)
         
-        return False
+        return False, False
     
     def _is_same_color_at(self, x: int, y: int, z: int, side: bool) -> bool:
         """Check if there's a piece of the same color at the given position"""
@@ -124,7 +140,6 @@ class Board:
         except IndexError:
             return False
     
-    @functools.cache
     def check(self, win_len: int = 5) -> tuple[bool, bool]:
         """
         Check if either side has won.
@@ -150,7 +165,6 @@ class Board:
         """Get the winner if there is one, None otherwise"""
         white_won, black_won = self.check(win_len)
         if white_won and black_won:
-            # This shouldn't happen in normal play, but handle it
             return None
         elif white_won:
             return Side.WHITE
@@ -159,5 +173,33 @@ class Board:
         else:
             return None
     
+    
     def __repr__(self) -> str:
         return f"Board(xrad={self.xrad}, yrad={self.yrad}, maxh={self.maxh}, pieces={len(self.list_pieces)})"
+    
+    def __str__(self) -> str:
+        stats = f"GAME BOARD - Radius: ({self.xrad}, {self.yrad}), Pieces: {len(self.list_pieces)}\n"
+        
+        # Create header row with centered indices
+        header = "   ║"  # Space for y-axis label
+        for i in range(-self.xrad, self.xrad + 1):
+            header += f"{i:^3}"  # Centered in 3-character wide cells
+        
+        # Build the game board with enhanced borders
+        board = "╔═══" + "═" * (len(header)-1) + "╗\n"  # Adjusted for y-axis space
+        board += "║ " + header + " ║\n"
+        board += "║ " + "═" * (len(header)) +" ║\n"
+                
+        for x in range(-self.xrad, self.xrad + 1):
+            board += "║ "
+            board += f"{x:^3}║"  # Y-coordinate at the start of each row
+            for y in range(-self.yrad, self.yrad + 1):
+                cell_value = self.grid[x + self.xrad][y + self.yrad].size()
+                if cell_value == 1:
+                    cell_value = "W" if self.grid[x + self.xrad][y + self.yrad].bottom().side else "B"
+                board += f"{cell_value:^3}"  # Center values in cells
+            board += " ║\n"
+        
+        board += "╚═══" + "═" * (len(header)-1) + "╝"  # Adjusted for y-axis space
+        
+        return f"{stats}{board}"
