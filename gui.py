@@ -42,6 +42,23 @@ def _spawn_piece_from_event(event: dict):
     p = GUIPiece(event["side"], event["x"], event["y"])
     _gui_pieces.append(p)  # keep a reference so it isn't GC'd
 
+def update():
+    """
+    Ursina will automatically call this once per frame (if defined globally).
+    We drain the thread-safe queue filled by the CLI thread and spawn pieces.
+    """
+    handled = 0
+    while not event_queue.empty():
+        event = event_queue.get_nowait()
+        print(f"[GUI] processing event: {event}")
+        handled += 1
+        if event.get("type") == "spawn_piece":
+            try:
+                _spawn_piece_from_event(event)
+            except Exception as e:
+                print(f"[gui] failed to spawn piece: {e}")
+    if handled:
+        print(f"[gui] handled {handled} events")
 
 def start_gui():
 

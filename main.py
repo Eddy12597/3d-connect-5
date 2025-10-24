@@ -18,7 +18,7 @@ def parseCommand(board: game.Board, x: str) -> None:
     if tokens[0] in ("peek", "pk", "p"):
         x = int(input("Enter X (peek): ")) # type: ignore
         y = int(input("Enter Y (peek): ")) # type: ignore
-        pk = " ".join([(f"{Back.WHITE}{Fore.BLACK}W{Style.RESET_ALL}" if p.side else f"{Back.BLACK}{Fore.WHITE}B{Style.RESET_ALL}") for p in board.grid[board.xrad + int(x)][board.yrad + y].tolist()])
+        pk = " ".join([(f"{Back.WHITE}{Fore.BLACK}W{Style.RESET_ALL}" if p.side else f"{Back.BLACK}{Fore.WHITE}B{Style.RESET_ALL}") for p in board.grid[board.xrad + int(x)][board.yrad + y]])
         print(f"({x}, {y}): {pk}")
 
 
@@ -49,22 +49,7 @@ def cli_thread(board: game.Board, q: Queue):
 
 # update() has to be placed in __main__
 def update():
-    """
-    Ursina will automatically call this once per frame (if defined globally).
-    We drain the thread-safe queue filled by the CLI thread and spawn pieces.
-    """
-    handled = 0
-    while not gui.event_queue.empty():
-        event = gui.event_queue.get_nowait()
-        print(f"[GUI] processing event: {event}")
-        handled += 1
-        if event.get("type") == "spawn_piece":
-            try:
-                gui._spawn_piece_from_event(event)
-            except Exception as e:
-                print(f"[gui] failed to spawn piece: {e}")
-    if handled:
-        print(f"[gui] handled {handled} events")
+    gui.update()
 
 def main() -> int:
     

@@ -1,5 +1,3 @@
-from stack import Stack
-from collections import deque
 from colorama import Back, Style, Fore
 
 class Side:
@@ -42,43 +40,41 @@ class Piece:
 
 class Board:
     def __init__(self, xrad: int = 9, yrad: int = 9, maxh: int = 50, list_pieces: list[Piece] | None = None, win_len: int = 5) -> None:
-        
-        self.status: bool | None = None # bool for side
-        
+        self.status: bool | None = None
         self.xrad = xrad
         self.yrad = yrad
         self.maxh = maxh
         self.win_len = win_len
         self.list_pieces: list[Piece] = list_pieces or []
         
-        # Create grid with stacks
-        self.grid: list[list[Stack[Piece]]] = [
-            [Stack[Piece]() for _ in range(2 * yrad + 1)] 
+        # 2D grid where each cell contains a list of pieces (stack replacement)
+        self.grid: list[list[list[Piece]]] = [
+            [[] for _ in range(2 * yrad + 1)] 
             for _ in range(2 * xrad + 1)
         ]
         self.place_list(self.list_pieces)
-        
     
     def place_list(self, list_pieces: list[Piece]) -> None:
         for piece in list_pieces:
             self.place(piece)
     
-    # also calls check_single(p, self.win_len)
     def place(self, p: Piece) -> None:
         x, y = p.x, p.y
         if not (-self.xrad <= x <= self.xrad and -self.yrad <= y <= self.yrad):
             raise IndexError(f"Position ({x}, {y}) is out of bounds")
         
-        z = self.grid[self.xrad + x][self.yrad + y].size()
-        if z >= self.maxh:
+        stack = self.grid[self.xrad + x][self.yrad + y]
+        if len(stack) >= self.maxh:
             raise RuntimeError("Maximum Height Reached!")
         
-        p.z = z
-        self.grid[self.xrad + x][self.yrad + y].push(p)
+        p.z = len(stack)
+        stack.append(p)
         self.list_pieces.append(p)
+        
         if any(res := self.check_single(p, self.win_len)):
             self.status = res[1]
-        else: self.status = None
+        else: 
+            self.status = None
     
     def __getitem__(self, coord: tuple[int, int, int]) -> Piece | None:
         x, y, z = coord
@@ -86,23 +82,21 @@ class Board:
             raise IndexError(f"Position ({x}, {y}) is out of bounds")
         
         stack = self.grid[self.xrad + x][self.yrad + y]
-        if z < 0 or z >= stack.size():
+        if z < 0 or z >= len(stack):
             return None
-        return stack.tolist()[z]
+        return stack[z]
     
     def get_top_piece(self, x: int, y: int) -> Piece | None:
         if not (-self.xrad <= x <= self.xrad and -self.yrad <= y <= self.yrad):
             return None
         
         stack = self.grid[self.xrad + x][self.yrad + y]
-        return stack.top() if stack.size() > 0 else None
+        return stack[-1] if stack else None
     
-    # returns (black_won, white_won)
     def check_single(self, piece: Piece, win_len: int = 5) -> tuple[bool, bool]:
         if piece.z is None:
             return False, False
         
-        # 26 possible directions in 3D space (combinations of -1, 0, 1 excluding (0,0,0))
         directions = [
             (dx, dy, dz) 
             for dx in (-1, 0, 1) 
@@ -112,16 +106,14 @@ class Board:
         ]
         
         for dx, dy, dz in directions:
-            count = 1  # Count the current piece
+            count = 1
             
-            # Check in positive direction
             for i in range(1, win_len):
                 nx, ny, nz = piece.x + i * dx, piece.y + i * dy, piece.z + i * dz
                 if not self._is_same_color_at(nx, ny, nz, piece.side):
                     break
                 count += 1
             
-            # Check in negative direction
             for i in range(1, win_len):
                 nx, ny, nz = piece.x - i * dx, piece.y - i * dy, piece.z - i * dz
                 if not self._is_same_color_at(nx, ny, nz, piece.side):
@@ -134,7 +126,6 @@ class Board:
         return False, False
     
     def _is_same_color_at(self, x: int, y: int, z: int, side: bool) -> bool:
-        """Check if there's a piece of the same color at the given position"""
         try:
             target_piece = self[x, y, z]
             return target_piece is not None and target_piece.side == side
@@ -142,15 +133,10 @@ class Board:
             return False
     
     def check(self, win_len: int = 5) -> tuple[bool, bool]:
-        """
-        Check if either side has won.
-        Returns: (white_won, black_won)
-        """
         white_won = False
         black_won = False
         
-        # Only check recent pieces for efficiency
-        for piece in self.list_pieces[-win_len * 2:]:  # Check last few pieces
+        for piece in self.list_pieces[-win_len * 2:]:
             if piece.z is None:
                 continue
                 
@@ -163,7 +149,6 @@ class Board:
         return white_won, black_won
     
     def get_winner(self, win_len: int = 5) -> bool | None:
-        """Get the winner if there is one, None otherwise"""
         white_won, black_won = self.check(win_len)
         if white_won and black_won:
             return None
@@ -174,35 +159,33 @@ class Board:
         else:
             return None
     
-    
     def __repr__(self) -> str:
         return f"Board(xrad={self.xrad}, yrad={self.yrad}, maxh={self.maxh}, pieces={len(self.list_pieces)})"
     
     def __str__(self) -> str:
         stats = f"GAME BOARD - Radius: ({self.xrad}, {self.yrad}), Pieces: {len(self.list_pieces)}\n"
         
-        # Create header row with centered indices
-        header = "   ║"  # Space for y-axis label
+        header = "   ║"
         for i in range(-self.xrad, self.xrad + 1):
-            header += f"{i:^3}"  # Centered in 3-character wide cells
+            header += f"{i:^3}"
         
-        # Build the game board with enhanced borders
-        board = "╔═══" + "═" * (len(header)-1) + "╗\n"  # Adjusted for y-axis space
+        board = "╔═══" + "═" * (len(header)-1) + "╗\n"
         board += "║ " + header + " ║\n"
         board += "║ " + "═" * (len(header)) +" ║\n"
                 
         for y in range(-self.yrad, self.yrad + 1):
             board += "║ "
-            board += f"{y:^3}║"  # Y-coordinate at the start of each row
+            board += f"{y:^3}║"
             for x in range(-self.xrad, self.xrad + 1):
-                cell_value = self.grid[x + self.xrad][y + self.yrad].size()
+                cell_stack = self.grid[x + self.xrad][y + self.yrad]
+                cell_value = len(cell_stack)
                 if cell_value == 1:
-                    cell_value = f"{f" {Back.WHITE}{Fore.BLACK}W{Style.RESET_ALL}":^3} " if self.grid[x + self.xrad][y + self.yrad].bottom().side else f"{f" {Back.BLUE}{Fore.WHITE}B{Style.RESET_ALL}":^3} "
+                    cell_value = f"{f" {Back.WHITE}{Fore.BLACK}W{Style.RESET_ALL}":^3} " if cell_stack[0].side else f"{f" {Back.BLUE}{Fore.WHITE}B{Style.RESET_ALL}":^3} "
                 elif cell_value != 0:
                     cell_value = f" {Back.GREEN}{Fore.WHITE}{cell_value}{Style.RESET_ALL} "
-                board += f"{cell_value:^3}"  # Center values in cells
+                board += f"{cell_value:^3}"
             board += " ║\n"
         
-        board += "╚═══" + "═" * (len(header)-1) + "╝"  # Adjusted for y-axis space
+        board += "╚═══" + "═" * (len(header)-1) + "╝"
         
         return f"{stats}{board}"
