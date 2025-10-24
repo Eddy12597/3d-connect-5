@@ -61,6 +61,7 @@ def cli_thread(board: game.Board, q: Queue):
             })
             
             side = not side
+            print(f"SIDE: {"Black" if not side else "White"}")
             print(str(board))
             
         except ValueError as e:
@@ -69,7 +70,8 @@ def cli_thread(board: game.Board, q: Queue):
             print(f"Position out of bounds: {e}")
         except Exception as e:
             print(f"Error: {type(e).__name__}: {e}")
-
+    print("Game ENDED!")
+    print("Black" if side else "White")
 board = game.Board()
 
 # update() has to be placed in __main__
