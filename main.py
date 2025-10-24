@@ -25,42 +25,68 @@ def parseCommand(board: game.Board, x: str) -> None:
 def cli_thread(board: game.Board, q: Queue):
     side = game.Side.WHITE
     print(str(board))
+    
     while board.status is None:
-        x = input("Enter X or command: ")
         try:
-            x = int(x)
-            y = int(input("Enter Y: "))
-        except:
-            parseCommand(board, x) # type: ignore
-            continue
+            x_input = input("Enter X or command: ")
+            
+            # Check if it's a command first
+            if not x_input.replace('-', '').isdigit():
+                parseCommand(board, x_input)
+                continue
+                
+            # Convert to int if it's a number
+            x = int(x_input)
+            y_input = input("Enter Y: ")
+            
+            if not y_input.replace('-', '').isdigit():
+                print("Invalid Y coordinate. Please enter a number.")
+                continue
+                
+            y = int(y_input)
 
-        try:
+            # Get the height BEFORE placing the piece
+            stack = board.grid[board.xrad + x][board.yrad + y]
+            height_before = len(stack)
+            
             board.place(game.Piece(side, x, y))
+            
+            # The new piece will be at height = height_before
             q.put({
                 "type": "spawn_piece",
                 "side": side,
                 "x": x,
-                "y": y
+                "y": y,
+                "z": height_before  # Add the z-coordinate
             })
+            
+            side = not side
+            print(str(board))
+            
+        except ValueError as e:
+            print(f"Invalid input: {e}. Please enter numbers for coordinates.")
+        except IndexError as e:
+            print(f"Position out of bounds: {e}")
         except Exception as e:
-            print(f"{type(e)}{e}")
-        side = not side
-        print(str(board))
+            print(f"Error: {type(e).__name__}: {e}")
+
+board = game.Board()
 
 # update() has to be placed in __main__
 def update():
-    gui.update()
+    gui.update(board)
 
 def main() -> int:
     
     q = gui.event_queue
-    board = game.Board()
+    global board
     threading.Thread(target=cli_thread, args=(board, q), daemon=True).start()
 
-    q.put({"type": "spawn_piece",
-           "side": game.Side.WHITE,
-           "x": 0,
-           "y": 0})
+    # debug
+    # q.put({"type": "spawn_piece",
+    #        "side": game.Side.WHITE,
+    #        "x": 0,
+    #        "y": 0})
     gui.start_gui()
 
     return 0
