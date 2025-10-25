@@ -2,8 +2,7 @@
 
 An attempt to implement our crazy idea from AE while playing connect-5 in Mr. G's classroom.
 
-<img width="1044" height="608" alt="image" src="https://github.com/user-attachments/assets/1dbaf190-1ba8-45df-a39d-d15e257c128c" />
-
+<img width="1044" height="674" alt="image" src="https://github.com/user-attachments/assets/364992f7-39e8-4abf-8274-eec9c6fa93b8" />
 
 ## Installation
 
