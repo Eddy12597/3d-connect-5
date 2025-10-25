@@ -1,5 +1,6 @@
 # gui.py
 from ursina import *
+from ursina.color import rgb
 import queue
 from board_and_piece import *
 
@@ -40,7 +41,7 @@ class GUIPiece(Piece):
         # Create an Entity and store it on the GUIPiece instance
         self.entity = Entity(
             model='models/go.obj',
-            color=color.white if side == Side.WHITE else color.dark_gray,
+            color=color.light_gray if side == Side.WHITE else color.dark_gray,
             position=Vec3(wx, wy, wz),
             scale=Vec3(0.4, 0.4, 0.3),
             rotation=Vec3(90, 0, 0)
@@ -54,7 +55,7 @@ def _spawn_piece_from_event(event: dict, board):
 
 def update(board: Board):
     """
-    Ursina will automatically call this once per frame (if defined globally).
+    Ursina will automatically call this, from main,py's update() wrapper.
     We drain the thread-safe queue filled by the CLI thread and spawn pieces.
     """
     handled = 0
@@ -70,17 +71,26 @@ def update(board: Board):
     # if handled:
         # print(f"[gui] handled {handled} events")
 
-def start_gui():
-
+def start_gui(xrad: int = 9, yrad: int = 9):
     app = Ursina(development_mode=True)
+    
     # camera + lights
     EditorCamera()
     DirectionalLight(y=2, z=3, shadows=False)
     AmbientLight(color=color.rgba(120, 120, 120, 0.5))
 
-    # ground / board plane
-    ground = Entity(model='plane', scale=Vec3(10, 1, 10), color=color.gray, position=Vec3(-5, -0.4, -5))
+    # ground / board plane - CENTERED AT ORIGIN
+    ground = Entity(
+        model='plane', 
+        scale=Vec3(2 * xrad, 1, 2 * yrad), 
+        color=color.gray, 
+        position=Vec3(0, -0.4, 0)
+    )
 
-    # checkerBoard = Entity(model='models/checkerboard.obj', position=Vec3(0,0,0), rotation=Vec3(90,0,0))
+    sun = DirectionalLight()
+    sun.look_at(Vec3(1, -2, -1))
+    sun.color = rgb(255, 244, 229) 
+    
+    AmbientLight(color=rgb(100, 100, 100))
 
     app.run()
