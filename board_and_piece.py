@@ -163,7 +163,7 @@ class Board:
         return f"Board(xrad={self.xrad}, yrad={self.yrad}, maxh={self.maxh}, pieces={len(self.list_pieces)})"
     
     def __str__(self) -> str:
-        stats = f"GAME BOARD - Radius: ({self.xrad}, {self.yrad}), Pieces: {len(self.list_pieces)}\n"
+        stats = f"\n---\nGAME BOARD - Radius: ({self.xrad}, {self.yrad}), Pieces: {len(self.list_pieces)}\n"
         
         header = "   ║"
         for i in range(-self.xrad, self.xrad + 1):
