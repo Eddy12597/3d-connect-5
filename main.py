@@ -23,6 +23,8 @@ def parseCommand(board: game.Board, x: str) -> None:
 
 
 def cli_thread(board: game.Board, q: Queue):
+    import time
+    time.sleep(5) # wait for gui to load and Ursina to print verbose stuff
     side = game.Side.WHITE
     print(str(board))
     
@@ -72,6 +74,9 @@ def cli_thread(board: game.Board, q: Queue):
             print(f"Error: {type(e).__name__}: {e}")
     print("Game ENDED!")
     print("Black" if side else "White")
+    q.put({"type": "draw_winning_line",
+            "line": board.status
+        })
 board = game.Board()
 
 # update() has to be placed in __main__
@@ -79,18 +84,10 @@ def update():
     gui.update(board)
 
 def main() -> int:
-    
     q = gui.event_queue
     global board
     threading.Thread(target=cli_thread, args=(board, q), daemon=True).start()
-
-    # debug
-    # q.put({"type": "spawn_piece",
-    #        "side": game.Side.WHITE,
-    #        "x": 0,
-    #        "y": 0})
     gui.start_gui()
-
     return 0
 
 if __name__ == "__main__":

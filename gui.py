@@ -5,16 +5,16 @@ import queue
 from board_and_piece import *
 
 event_queue = queue.Queue[dict[str, bool | int | str]]()
-_gui_pieces = []
+_entity_colors_dict: dict[Entity, Color] = {} # no need for _gui_pieces, it seems?
 
 # Tuning - centered around origin
 BOARD_CELL_SIZE = 0.9
 PIECE_HEIGHT = 0
 
+# does it extend Entity or Piece?
 class GUIPiece(Piece):
     def __init__(self, side, x, y, board: Board, z=None, i=-1):
         super().__init__(side, x, y, z, i)
-
         # Map board (x,y) to world coordinates centered at origin.
         # Keep Y inverted so CLI top/bottom matches Ursina view.
         wx = x * BOARD_CELL_SIZE
@@ -33,15 +33,52 @@ class GUIPiece(Piece):
             color=color.light_gray if side == Side.WHITE else color.dark_gray,
             position=Vec3(wx, wy, wz),
             scale=Vec3(0.4, 0.4, 0.3),
-            rotation=Vec3(90, 0, 0)
+            rotation=Vec3(90, 0, 0),
+            collider="mesh"
         )
+
+_entity_to_gui_piece: dict[Entity, GUIPiece] = {}
+_piece_to_gui_piece: dict[Piece, GUIPiece] = {}
 
 def _spawn_piece_from_event(event: dict, board):
     p = GUIPiece(event["side"], event["x"], event["y"], board, event.get("z"))
-    _gui_pieces.append(p)
+    _entity_colors_dict.update({p.entity: color.light_gray if p.side == Side.WHITE else color.dark_gray})
+    _entity_to_gui_piece[p.entity] = p
+    if board.last_placed is not None:
+        _piece_to_gui_piece[board.last_placed] = p
+    
+_previous_hovered_entity = None
+
+def process_hovered(en: Entity):
+    if (p:=_entity_to_gui_piece.get(en)):
+        if p.side == Side.WHITE:
+            en.color = color.white
+        elif p.side == Side.BLACK:
+            en.color = color.gray
+
+# event should have a list of pieces
+def _draw_winning_line(event: dict, board: Board):
+    line = event["line"]
+    if not isinstance(line, list):
+        return
+    guipieces: list[GUIPiece] = []
+    for p in line:
+        if not isinstance(p, Piece):
+            break
+        gp = _piece_to_gui_piece.get(p)
+        if gp is None:
+            break
+        guipieces.append(gp)
+    for gp in guipieces:
+        gp.entity.color = color.green
+        _entity_colors_dict[gp.entity] = color.green
+        
 
 def update(board: Board):
+    global _previous_hovered_entity
     handled = 0
+    
+    # Process events first
     while not event_queue.empty():
         event = event_queue.get_nowait()
         handled += 1
@@ -50,6 +87,26 @@ def update(board: Board):
                 _spawn_piece_from_event(event, board)
             except Exception as e:
                 print(f"[gui] failed to spawn piece: {e}")
+        elif event.get("type") == "draw_winning_line":
+            try:
+                _draw_winning_line(event, board)
+            except Exception as e:
+                print(f"[gui] failed to draw winning line: {e}")
+
+    # Handle hover highlighting
+    current_hovered = mouse.hovered_entity
+    
+    # Reset previously hovered entity if it's no longer hovered
+    if _previous_hovered_entity and _previous_hovered_entity != current_hovered:
+        if _previous_hovered_entity in _entity_colors_dict:
+            _previous_hovered_entity.color = _entity_colors_dict[_previous_hovered_entity]
+    
+    # Highlight currently hovered entity
+    if current_hovered and current_hovered in _entity_colors_dict:
+        process_hovered(current_hovered)
+    
+    _previous_hovered_entity = current_hovered
+
 
 def start_gui(xrad: int = 9, yrad: int = 9):
     app = Ursina(development_mode=False)
@@ -87,6 +144,7 @@ def start_gui(xrad: int = 9, yrad: int = 9):
         position=Vec3(0, -0.4, 0),
         texture='white_cube'
     )
+    _entity_colors_dict.update({ground: color.gray})
 
     # Add grid lines with coordinate system matching CLI and centered at origin
     _create_grid_lines(xrad, yrad, BOARD_CELL_SIZE)
@@ -133,6 +191,7 @@ def _create_grid_lines(xrad, yrad, cell_size):
             position=Vec3(wx, -0.39, (start_z + end_z) / 2),
             scale=Vec3(0.02, 0.02, (end_z - start_z))
         )
+        _entity_colors_dict.update({line: color.black if x != 0 else color.green})
 
     # Horizontal lines (constant y)
     start_x = -xrad * cell_size
@@ -145,6 +204,7 @@ def _create_grid_lines(xrad, yrad, cell_size):
             position=Vec3((start_x + end_x) / 2, -0.39, wz),
             scale=Vec3((end_x - start_x), 0.02, 0.02)
         )
+        _entity_colors_dict.update({line: color.black if y != 0 else color.green})
 
 def _add_test_markers(xrad, yrad, cell_size):
     """Add test markers at key positions"""

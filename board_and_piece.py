@@ -32,6 +32,10 @@ class Piece:
             return False
         return (self.x == other.x and self.y == other.y and 
                 self.z == other.z and self.side == other.side)
+    def __hash__(self) -> int:
+        side_int = 1 if self.side else 0
+        z_val = self.z if self.z is not None else -1
+        return hash((self.x, self.y, z_val, side_int))
     
     def __repr__(self) -> str:
         side_str = "White" if self.side else "Black"
@@ -40,12 +44,13 @@ class Piece:
 
 class Board:
     def __init__(self, xrad: int = 9, yrad: int = 9, maxh: int = 50, list_pieces: list[Piece] | None = None, win_len: int = 5) -> None:
-        self.status: bool | None = None
+        self.status: list[Piece] | None = None
         self.xrad = xrad
         self.yrad = yrad
         self.maxh = maxh
         self.win_len = win_len
         self.list_pieces: list[Piece] = list_pieces or []
+        self.last_placed: Piece | None = None
         
         # 2D grid where each cell contains a list of pieces (stack replacement)
         self.grid: list[list[list[Piece]]] = [
@@ -53,7 +58,6 @@ class Board:
             for _ in range(2 * xrad + 1)
         ]
         self.place_list(self.list_pieces)
-    
     def place_list(self, list_pieces: list[Piece]) -> None:
         for piece in list_pieces:
             self.place(piece)
@@ -71,10 +75,9 @@ class Board:
         stack.append(p)
         self.list_pieces.append(p)
         
-        if any(res := self.check_single(p, self.win_len)):
-            self.status = res[1]
-        else: 
-            self.status = None
+        # Update self.status with the winning line if found
+        self.status = self.check(self.win_len)
+        self.last_placed = p
     
     def __getitem__(self, coord: tuple[int, int, int]) -> Piece | None:
         x, y, z = coord
@@ -85,6 +88,12 @@ class Board:
         if z < 0 or z >= len(stack):
             return None
         return stack[z]
+    def _get_piece_at(self, x: int, y: int, z: int) -> Piece | None:
+        """Helper method to get piece at coordinates without raising errors"""
+        try:
+            return self[x, y, z]
+        except (IndexError, TypeError):
+            return None
     
     def get_top_piece(self, x: int, y: int) -> Piece | None:
         if not (-self.xrad <= x <= self.xrad and -self.yrad <= y <= self.yrad):
@@ -93,9 +102,9 @@ class Board:
         stack = self.grid[self.xrad + x][self.yrad + y]
         return stack[-1] if stack else None
     
-    def check_single(self, piece: Piece, win_len: int = 5) -> tuple[bool, bool]:
+    def check_single(self, piece: Piece, win_len: int = 5) -> list[Piece] | None:
         if piece.z is None:
-            return False, False
+            return None
         
         directions = [
             (dx, dy, dz) 
@@ -106,24 +115,28 @@ class Board:
         ]
         
         for dx, dy, dz in directions:
-            count = 1
+            winning_pieces = [piece]
             
+            # Check in positive direction
             for i in range(1, win_len):
                 nx, ny, nz = piece.x + i * dx, piece.y + i * dy, piece.z + i * dz
-                if not self._is_same_color_at(nx, ny, nz, piece.side):
+                target_piece = self._get_piece_at(nx, ny, nz)
+                if target_piece is None or target_piece.side != piece.side:
                     break
-                count += 1
+                winning_pieces.append(target_piece)
             
+            # Check in negative direction  
             for i in range(1, win_len):
                 nx, ny, nz = piece.x - i * dx, piece.y - i * dy, piece.z - i * dz
-                if not self._is_same_color_at(nx, ny, nz, piece.side):
+                target_piece = self._get_piece_at(nx, ny, nz)
+                if target_piece is None or target_piece.side != piece.side:
                     break
-                count += 1
+                winning_pieces.append(target_piece)
             
-            if count >= win_len:
-                return ((not piece.side), piece.side)
+            if len(winning_pieces) >= win_len:
+                return winning_pieces
         
-        return False, False
+        return None
     
     def _is_same_color_at(self, x: int, y: int, z: int, side: bool) -> bool:
         try:
@@ -132,32 +145,28 @@ class Board:
         except IndexError:
             return False
     
-    def check(self, win_len: int = 5) -> tuple[bool, bool]:
-        white_won = False
-        black_won = False
-        
+    def check(self, win_len: int = 5) -> list[Piece] | None:
+        # Check only recent pieces for efficiency
         for piece in self.list_pieces[-win_len * 2:]:
             if piece.z is None:
                 continue
                 
-            if self.check_single(piece, win_len):
-                if piece.side:
-                    white_won = True
-                else:
-                    black_won = True
+            winning_line = self.check_single(piece, win_len)
+            if winning_line:
+                return winning_line
         
-        return white_won, black_won
+        return None
     
-    def get_winner(self, win_len: int = 5) -> bool | None:
-        white_won, black_won = self.check(win_len)
-        if white_won and black_won:
-            return None
-        elif white_won:
-            return Side.WHITE
-        elif black_won:
-            return Side.BLACK
-        else:
-            return None
+    # def get_winner(self, win_len: int = 5) -> bool | None:
+    #     white_won, black_won = self.check(win_len)
+    #     if white_won and black_won:
+    #         return None
+    #     elif white_won:
+    #         return Side.WHITE
+    #     elif black_won:
+    #         return Side.BLACK
+    #     else:
+    #         return None
     
     def __repr__(self) -> str:
         return f"Board(xrad={self.xrad}, yrad={self.yrad}, maxh={self.maxh}, pieces={len(self.list_pieces)})"
