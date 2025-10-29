@@ -35,7 +35,7 @@ class Piece:
     def __hash__(self) -> int:
         side_int = 1 if self.side else 0
         z_val = self.z if self.z is not None else -1
-        return hash((self.x, self.y, z_val, side_int))
+        return hash((self.x, self.y, z_val, side_int, self.id))
     
     def __repr__(self) -> str:
         side_str = "White" if self.side else "Black"
