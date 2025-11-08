@@ -108,7 +108,7 @@ def update(board: Board):
     _previous_hovered_entity = current_hovered
 
 
-def start_gui(xrad: int = 9, yrad: int = 9):
+def start_gui(xrad: int = BOARD_RAD, yrad: int = BOARD_RAD):
     app = Ursina(development_mode=False)
 
     # Calculate board dimensions

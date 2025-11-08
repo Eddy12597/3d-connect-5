@@ -3,7 +3,7 @@ from colorama import Back, Style, Fore
 class Side:
     WHITE = True
     BLACK = False
-
+BOARD_RAD = 3
 _idcnt = 0
 
 class Piece:
@@ -43,7 +43,7 @@ class Piece:
 
 
 class Board:
-    def __init__(self, xrad: int = 9, yrad: int = 9, maxh: int = 50, list_pieces: list[Piece] | None = None, win_len: int = 5) -> None:
+    def __init__(self, xrad: int = BOARD_RAD, yrad: int = BOARD_RAD, maxh: int = 50, list_pieces: list[Piece] | None = None, win_len: int = 5) -> None:
         self.status: list[Piece] | None = None
         self.xrad = xrad
         self.yrad = yrad
